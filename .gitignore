@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+dist
+frontend/dist
+
+# Environment variables & API Keys
+.env
+.env.local
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+.env.*.local
+!backend/.env.example
+!frontend/.env.example
+
+# Cloudflare Wrangler cache & state
+.wrangler
+
+# Local runtime storage & test files
+backend/data/*.json
+!backend/data/.gitkeep
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
