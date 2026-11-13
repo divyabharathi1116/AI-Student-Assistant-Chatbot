@@ -1,4 +1,13 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl || typeof envUrl !== 'string' || envUrl.trim().length === 0) {
+    return '/api';
+  }
+  const clean = envUrl.trim().replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+};
+
+const API_BASE = getApiBase();
 
 const getHeaders = () => {
   const token = localStorage.getItem('ai_student_token');
@@ -40,6 +49,9 @@ const handleResponse = async (res) => {
   }
 
   if (!res.ok) {
+    if (res.status === 405) {
+      throw new Error('HTTP 405 Method Not Allowed: The endpoint /api/chat received a static request. Ensure Cloudflare Pages Functions are included in your deployment or configure VITE_API_URL.');
+    }
     const errorMsg = data?.error || data?.message || `Request failed with status ${res.status} (${res.statusText})`;
     throw new Error(errorMsg);
   }
