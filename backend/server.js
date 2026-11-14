@@ -17,6 +17,7 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
