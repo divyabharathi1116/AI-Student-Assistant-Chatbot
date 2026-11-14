@@ -17,6 +17,12 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
 const app = express();
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'AI Student Assistant Backend is running'
+  });
+});
 const PORT = process.env.PORT || 5000;
 
 // Parse allowed CORS origins from environment
