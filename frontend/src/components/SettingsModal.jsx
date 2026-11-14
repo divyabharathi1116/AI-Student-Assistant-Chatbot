@@ -8,16 +8,19 @@ import {
   AlertCircle,
   ExternalLink,
   Save,
-  GraduationCap,
+  Server,
+  Globe,
+  RefreshCw,
   Eye,
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, getApiBase } from '../services/api';
 
 export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
-  const { apiKeyOverride, saveApiKey, selectedModel, saveModel, user } = useAuth();
+  const { apiKeyOverride, saveApiKey, backendUrl, saveBackendUrl, selectedModel, saveModel } = useAuth();
   const [keyInput, setKeyInput] = useState(apiKeyOverride || '');
+  const [urlInput, setUrlInput] = useState(backendUrl || '');
   const [modelInput, setModelInput] = useState(selectedModel || 'gemini-3.8-flash');
   const [showKey, setShowKey] = useState(false);
   const [backendHealth, setBackendHealth] = useState(null);
@@ -26,10 +29,11 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
   useEffect(() => {
     if (isOpen) {
       setKeyInput(apiKeyOverride || '');
+      setUrlInput(backendUrl || '');
       setModelInput(selectedModel || 'gemini-3.8-flash');
       checkHealth();
     }
-  }, [isOpen, apiKeyOverride, selectedModel]);
+  }, [isOpen, apiKeyOverride, backendUrl, selectedModel]);
 
   const checkHealth = async () => {
     setIsLoadingHealth(true);
@@ -46,12 +50,15 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
   const handleSave = (e) => {
     e.preventDefault();
     saveApiKey(keyInput.trim());
+    saveBackendUrl(urlInput.trim());
     saveModel(modelInput);
     if (onShowToast) onShowToast('Settings saved successfully!');
     onClose();
   };
 
   if (!isOpen) return null;
+
+  const currentApiBase = getApiBase();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -67,6 +74,30 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
         </div>
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Backend Server URL */}
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Server size={14} />
+                <span>Backend API Server URL</span>
+              </label>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+                Active: <code>{currentApiBase}</code>
+              </span>
+            </div>
+            <input
+              type="text"
+              className="form-input"
+              style={{ width: '100%' }}
+              placeholder="e.g. https://your-backend.onrender.com or http://localhost:5000"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+            />
+            <span className="form-hint">
+              Leave blank to use default <code>/api</code> (or <code>VITE_API_URL</code>). In production, set to your deployed Express backend URL.
+            </span>
+          </div>
+
           {/* Gemini API Key */}
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -112,7 +143,7 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
               </button>
             </div>
             <span className="form-hint">
-              Used directly with the Google Gemini API. Can also be set in <code>backend/.env</code>.
+              Can also be securely configured in <code>backend/.env</code> as <code>GEMINI_API_KEY</code>.
             </span>
           </div>
 
@@ -143,18 +174,32 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
               gap: '0.4rem',
             }}
           >
-            <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>System Diagnostics</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>System Diagnostics</div>
+              <button
+                type="button"
+                onClick={checkHealth}
+                className="icon-btn-ghost"
+                style={{ padding: '2px 6px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '3px' }}
+                title="Test backend connection"
+              >
+                <RefreshCw size={11} className={isLoadingHealth ? 'spin' : ''} />
+                <span>Test Connection</span>
+              </button>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Database Status:</span>
               <span style={{ fontWeight: 600, color: 'var(--accent-purple)' }}>
                 {backendHealth?.database || (isLoadingHealth ? 'Checking...' : 'Active')}
               </span>
             </div>
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>Backend Server:</span>
+              <span>Backend Status:</span>
               <span
                 style={{
-                  color: backendHealth?.status === 'online' ? '#10b981' : '#f59e0b',
+                  color: backendHealth?.status === 'online' ? '#10b981' : '#ef4444',
                   fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
@@ -163,15 +208,24 @@ export const SettingsModal = ({ isOpen, onClose, onShowToast }) => {
               >
                 {backendHealth?.status === 'online' ? (
                   <>
-                    <CheckCircle2 size={13} /> Online (Port 5000)
+                    <CheckCircle2 size={13} /> Online ({backendHealth?.appName || 'Connected'})
                   </>
                 ) : (
                   <>
-                    <AlertCircle size={13} /> Connecting...
+                    <AlertCircle size={13} /> {isLoadingHealth ? 'Connecting...' : 'Unreachable'}
                   </>
                 )}
               </span>
             </div>
+
+            {backendHealth?.geminiKeyConfigured !== undefined && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Server Gemini Key:</span>
+                <span style={{ color: backendHealth.geminiKeyConfigured ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
+                  {backendHealth.geminiKeyConfigured ? 'Configured on Server' : 'Not Set in backend/.env'}
+                </span>
+              </div>
+            )}
           </div>
 
           <button type="submit" className="btn-primary" style={{ marginTop: '0.5rem' }}>

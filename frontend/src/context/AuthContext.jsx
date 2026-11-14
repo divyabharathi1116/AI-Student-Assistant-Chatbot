@@ -23,6 +23,10 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('ai_student_gemini_key') || '';
   });
 
+  const [backendUrl, setBackendUrl] = useState(() => {
+    return localStorage.getItem('ai_student_backend_url') || import.meta.env.VITE_API_URL || '';
+  });
+
   const [selectedModel, setSelectedModel] = useState(() => {
     const saved = localStorage.getItem('ai_student_gemini_model');
     if (saved && (saved.includes('1.5') || saved.includes('2.0') || saved.includes('pro'))) {
@@ -51,6 +55,16 @@ export const AuthProvider = ({ children }) => {
   const saveApiKey = (key) => {
     setApiKeyOverride(key);
     localStorage.setItem('ai_student_gemini_key', key);
+  };
+
+  const saveBackendUrl = (url) => {
+    const clean = (url || '').trim().replace(/\/+$/, '');
+    setBackendUrl(clean);
+    if (clean) {
+      localStorage.setItem('ai_student_backend_url', clean);
+    } else {
+      localStorage.removeItem('ai_student_backend_url');
+    }
   };
 
   const saveModel = (model) => {
@@ -86,8 +100,10 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!token,
         guestId,
         apiKeyOverride,
+        backendUrl,
         selectedModel,
         saveApiKey,
+        saveBackendUrl,
         saveModel,
         loginSuccess: handleLoginSuccess,
         logout: handleLogout,

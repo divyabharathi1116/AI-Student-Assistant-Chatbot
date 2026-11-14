@@ -5,6 +5,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_ai_student_assistant_
 
 export const authMiddleware = async (req, res, next) => {
   try {
+    // Immediately pass through CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     let userId = null;
     let user = null;

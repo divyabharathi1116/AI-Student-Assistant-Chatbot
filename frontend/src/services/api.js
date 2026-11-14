@@ -1,13 +1,23 @@
-const getApiBase = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl || typeof envUrl !== 'string' || envUrl.trim().length === 0) {
-    return '/api';
+export const getApiBase = () => {
+  // 1. Check custom runtime backend URL stored in localStorage (e.g. configured via SettingsModal)
+  if (typeof window !== 'undefined') {
+    const customUrl = localStorage.getItem('ai_student_backend_url');
+    if (customUrl && typeof customUrl === 'string' && customUrl.trim().length > 0) {
+      const clean = customUrl.trim().replace(/\/+$/, '');
+      return clean.endsWith('/api') ? clean : `${clean}/api`;
+    }
   }
-  const clean = envUrl.trim().replace(/\/+$/, '');
-  return clean.endsWith('/api') ? clean : `${clean}/api`;
-};
 
-const API_BASE = getApiBase();
+  // 2. Check environment variable VITE_API_URL provided at build or run time
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    const clean = envUrl.trim().replace(/\/+$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+
+  // 3. In development or reverse proxy setups, use relative '/api'
+  return '/api';
+};
 
 const getHeaders = () => {
   const token = localStorage.getItem('ai_student_token');
@@ -50,7 +60,9 @@ const handleResponse = async (res) => {
 
   if (!res.ok) {
     if (res.status === 405) {
-      throw new Error('HTTP 405 Method Not Allowed: The endpoint /api/chat received a static request. Ensure Cloudflare Pages Functions are included in your deployment or configure VITE_API_URL.');
+      throw new Error(
+        `HTTP 405 Method Not Allowed received from ${res.url}. The request was sent to a static host instead of the Express backend. Please ensure VITE_API_URL is configured in your deployment environment or set your Backend URL in Settings.`
+      );
     }
     const errorMsg = data?.error || data?.message || `Request failed with status ${res.status} (${res.statusText})`;
     throw new Error(errorMsg);
@@ -72,7 +84,8 @@ export const api = {
     apiKeyOverride,
   }) {
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -97,7 +110,8 @@ export const api = {
 
   async getConversations() {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations`, {
         headers: getHeaders(),
       });
       const data = await handleResponse(res);
@@ -110,7 +124,8 @@ export const api = {
 
   async getConversation(id) {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations/${id}`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations/${id}`, {
         headers: getHeaders(),
       });
       return await handleResponse(res);
@@ -122,7 +137,8 @@ export const api = {
 
   async createConversation(title = 'New Academic Chat', studyMode = 'academic') {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ title, studyMode }),
@@ -137,7 +153,8 @@ export const api = {
 
   async renameConversation(id, title) {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations/${id}`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations/${id}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify({ title }),
@@ -152,7 +169,8 @@ export const api = {
 
   async deleteConversation(id) {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations/${id}`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
@@ -165,7 +183,8 @@ export const api = {
 
   async clearConversation(id) {
     try {
-      const res = await fetch(`${API_BASE}/chat/conversations/${id}/clear`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/chat/conversations/${id}/clear`, {
         method: 'POST',
         headers: getHeaders(),
       });
@@ -178,6 +197,7 @@ export const api = {
 
   async uploadPdf(file) {
     try {
+      const baseUrl = getApiBase();
       const formData = new FormData();
       formData.append('file', file);
 
@@ -187,7 +207,7 @@ export const api = {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (guestId) headers['x-guest-id'] = guestId;
 
-      const res = await fetch(`${API_BASE}/upload/pdf`, {
+      const res = await fetch(`${baseUrl}/upload/pdf`, {
         method: 'POST',
         headers,
         body: formData,
@@ -202,7 +222,8 @@ export const api = {
 
   async login(email, password) {
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -216,7 +237,8 @@ export const api = {
 
   async register(details) {
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(details),
@@ -230,7 +252,8 @@ export const api = {
 
   async getHealth() {
     try {
-      const res = await fetch(`${API_BASE}/health`);
+      const baseUrl = getApiBase();
+      const res = await fetch(`${baseUrl}/health`);
       return await handleResponse(res);
     } catch (err) {
       console.error('[API] getHealth failed:', err);
